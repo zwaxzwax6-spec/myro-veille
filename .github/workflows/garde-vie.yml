@@ -1,0 +1,26 @@
+name: garde-vie
+
+# GitHub désactive les workflows planifiés d'un dépôt public après 60 jours sans activité :
+# un commit hebdomadaire garde la veille en vie.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  garde-vie:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Commit de garde-vie
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > garde-vie.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add garde-vie.txt
+          git commit -m "garde-vie : $(cat garde-vie.txt)"
+          git push
