@@ -369,6 +369,23 @@ export async function main(env = process.env) {
     }
   }
 
+  /* Un incident dont le contrôle n'existe PLUS (URL de test retirée, contrôle
+     du battement désactivé) : il ne se rétablirait jamais tout seul. Il est
+     clos comme rétabli, avec la raison. */
+  if (avecGithub) {
+    const presents = new Set(resultats.map((r) => r.id));
+    for (const [id, issue] of ouvertes) {
+      if (presents.has(id)) continue;
+      const duree = dureeMinutes(issue.created_at, maintenant);
+      const h = heureUtc(maintenant);
+      await gh(env, "POST", `/issues/${issue.number}/comments`, { body: `Rétabli à ${h} (durée ~${duree} min) — contrôle retiré de la veille.` });
+      await gh(env, "PATCH", `/issues/${issue.number}`, { state: "closed", state_reason: "completed" });
+      actions.push(`Issue #${issue.number} (${id}) close : contrôle retiré`);
+      await envoyerEmail(env, `✅ RÉTABLI ${id} (durée ${duree} min)`,
+        `Rétabli à ${h} (durée ~${duree} min) : le contrôle a été retiré de la veille.\nIssue : ${issue.html_url}\n`);
+    }
+  }
+
   // Journal et résumé
   for (const r of resultats) console.log(`${r.ok ? "OK   " : "PANNE"} ${r.id.padEnd(20)} ${String(r.dureeMs).padStart(6)} ms  ${r.motif}`);
   for (const a of actions) console.log(a);
