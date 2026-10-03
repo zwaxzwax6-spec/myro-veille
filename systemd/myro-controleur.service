@@ -1,0 +1,14 @@
+# Contrôleur continu Myro (hors Vercel) : routes de santé, pages clientes, connexion kpi.
+# Versionné dans myro-veille : systemd/ ; copié dans ~/.config/systemd/user/.
+[Unit]
+Description=Contrôleur Myro toutes les 5 min (2 échecs = e-mail, retour = e-mail)
+OnFailure=myro-alerte@%n.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=PATH=/home/builder/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=LANG=C.UTF-8
+ExecStart=/usr/bin/env node /home/builder/projects/myro-veille/controleur.mjs
+TimeoutStartSec=240
