@@ -74,3 +74,32 @@ test("l'URL affichée n'emporte jamais de paramètre (secret de contournement)",
   const { urlAffichee } = await import("./controleur.mjs");
   assert.equal(urlAffichee("https://x.vercel.app/api/sante/base?x-vercel-protection-bypass=SECRET"), "https://x.vercel.app/api/sante/base");
 });
+
+test("e-mail d'alerte non parti : l'alerte est retentée au passage suivant", async () => {
+  const { passage } = await import("./controleur.mjs");
+  let resendOk = false;
+  const sujets = [];
+  const fetchImpl = async (url, init) => {
+    if (String(url).includes("api.resend.com")) {
+      sujets.push(JSON.parse(init.body).subject);
+      return new Response("{}", { status: resendOk ? 200 : 500 });
+    }
+    if (String(url).includes("exemple.test")) return new Response("down", { status: 503 });
+    if (String(url).includes("/api/sante/base")) return new Response('{"ok":true}', { status: 200 });
+    if (String(url).endsWith("myro-kpi.vercel.app/")) return new Response("", { status: 307, headers: { location: "/login" } });
+    if (String(url).includes("/login")) return new Response("<title>Connexion · Myro</title>", { status: 200 });
+    const cle = String(url).includes("nabil") ? "nabil" : "nicolas";
+    const page = String(url).includes("webinaire") ? "webinaire" : "formation";
+    return new Response(`/api/m/tag/${cle}/${page}.js /evergreen/comportements.js /wb/v2/comportements.js`, { status: 200 });
+  };
+  const { writeFileSync, rmSync } = await import("node:fs");
+  writeFileSync(path.join(process.env.CONTROLEUR_ETAT, "url-test"), "https://exemple.test/x");
+  const env = { RESEND_API_KEY: "re_test", ALERTE_EMAIL: "a@b.c" };
+  const p1 = await passage({ env, fetchImpl, pause: 1 });
+  assert.equal(p1.etats["test-panne"].incident, null, "alerte non partie : incident non ouvert");
+  resendOk = true;
+  const p2 = await passage({ env, fetchImpl, pause: 1 });
+  assert.ok(p2.etats["test-panne"].incident, "alerte partie : incident ouvert");
+  assert.deepEqual(sujets, ["🔴 Myro EN PANNE — test-panne", "🔴 Myro EN PANNE — test-panne"]);
+  rmSync(path.join(process.env.CONTROLEUR_ETAT, "url-test"));
+});

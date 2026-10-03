@@ -111,12 +111,17 @@ export async function passage({ env, fetchImpl = fetch, pause = PAUSE_CONFIRMATI
 
   let resultats = await Promise.all(controles.map((c) => executerControle(c, env, { fetchImpl })));
   const aConfirmer = resultats.filter((r) => !r.ok && !etats[r.id]?.incident).map((r) => r.id);
-  // Premier échec : on décide sur ce résultat (1 échec), puis on refait le contrôle 60 s plus tard.
+  // Un échec sans incident ouvert est refait 60 s plus tard ; c'est la confirmation qui décide.
   const decisions = [];
   for (const r of resultats) {
+    if (aConfirmer.includes(r.id)) {
+      /* À confirmer : on compte l'échec, la décision se prend sur la confirmation. */
+      etats[r.id] = { echecs: (etats[r.id]?.echecs ?? 0) + 1, incident: null };
+      continue;
+    }
     const d = decider(etats[r.id], r, maintenant());
     etats[r.id] = d.etat;
-    if (!aConfirmer.includes(r.id)) decisions.push({ r, d });
+    decisions.push({ r, d });
   }
   if (aConfirmer.length) {
     await new Promise((ok) => setTimeout(ok, pause));
@@ -141,6 +146,10 @@ export async function passage({ env, fetchImpl = fetch, pause = PAUSE_CONFIRMATI
         : `${urlAffichee(r.url)}\nDe nouveau en ordre à ${quand} (panne ouverte à ${heureUtc(new Date(d.incident.depuis))}).`;
     const e = await envoyer(env, sujet, texte, `myro-controleur-${r.id}-${d.incident.depuis}-${d.action}`, fetchImpl);
     envois.push({ id: r.id, action: d.action, ...e });
+    /* E-mail non parti : l'incident n'est PAS tenu pour signalé (revue du 03/10).
+       Panne : on ne l'ouvre pas — le passage suivant, toujours en échec, retente
+       l'alerte. Retour : on le garde ouvert — le passage suivant retente le retour. */
+    if (!e.ok) etats[r.id] = d.action === "alerte" ? { ...d.etat, incident: null } : { echecs: 0, incident: d.incident };
   }
 
   ecrireJson(fEtat, etats);
