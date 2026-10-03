@@ -69,3 +69,8 @@ test("passage : panne confirmée 60 s plus tard → un e-mail ; retour → un e-
   const battement = readFileSync(path.join(process.env.CONTROLEUR_ETAT, "battement"), "utf8").trim();
   assert.ok(Date.now() - Date.parse(battement) < 60_000);
 });
+
+test("l'URL affichée n'emporte jamais de paramètre (secret de contournement)", async () => {
+  const { urlAffichee } = await import("./controleur.mjs");
+  assert.equal(urlAffichee("https://x.vercel.app/api/sante/base?x-vercel-protection-bypass=SECRET"), "https://x.vercel.app/api/sante/base");
+});

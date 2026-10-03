@@ -20,6 +20,16 @@ export const ETAT_DIR = process.env.CONTROLEUR_ETAT || path.join(os.homedir(), "
 export const PAUSE_CONFIRMATION_MS = 60_000;
 export const ECHECS_POUR_ALERTE = 2;
 
+/** L'URL montrée dans un e-mail ou le journal : sans paramètres (un contournement de protection en est un). */
+export function urlAffichee(url) {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return "(url illisible)";
+  }
+}
+
 const SANTE = (id, url) => ({ id, url, maxRedirections: 0, marqueurs: ['"ok":true'] });
 
 /** La liste fixe des contrôles, plus une URL de test facultative (simulation de panne). */
@@ -127,8 +137,8 @@ export async function passage({ env, fetchImpl = fetch, pause = PAUSE_CONFIRMATI
     const sujet = d.action === "alerte" ? `🔴 Myro EN PANNE — ${r.id}` : `✅ Myro rétabli — ${r.id}`;
     const texte =
       d.action === "alerte"
-        ? `${r.url}\nMotif : ${r.motif}\nDeux échecs consécutifs (contrôle du VPS, toutes les 5 min), constaté à ${quand}.\nUn seul e-mail par incident ; un second partira au retour à la normale.\nQue faire : docs/INCIDENTS.md (dépôt myro-funnel).`
-        : `${r.url}\nDe nouveau en ordre à ${quand} (panne ouverte à ${heureUtc(new Date(d.incident.depuis))}).`;
+        ? `${urlAffichee(r.url)}\nMotif : ${r.motif}\nDeux échecs consécutifs (contrôle du VPS, toutes les 5 min), constaté à ${quand}.\nUn seul e-mail par incident ; un second partira au retour à la normale.\nQue faire : docs/INCIDENTS.md (dépôt myro-funnel).`
+        : `${urlAffichee(r.url)}\nDe nouveau en ordre à ${quand} (panne ouverte à ${heureUtc(new Date(d.incident.depuis))}).`;
     const e = await envoyer(env, sujet, texte, `myro-controleur-${r.id}-${d.incident.depuis}-${d.action}`, fetchImpl);
     envois.push({ id: r.id, action: d.action, ...e });
   }
