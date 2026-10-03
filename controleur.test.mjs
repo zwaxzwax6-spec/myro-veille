@@ -61,6 +61,7 @@ test("passage : panne confirmée 60 s plus tard → un e-mail ; retour → un e-
   const p1 = await passage({ env, fetchImpl, pause: 1 });
   assert.deepEqual(mails, ["🔴 Myro EN PANNE — sante-kpi"]);
   assert.equal(p1.etats["sante-kpi"].echecs, 2);
+  assert.deepEqual(p1.envois, [{ controle: "sante-kpi", action: "alerte", ok: true, resend: "m", motif: null }], "le journal nomme le contrôle, pas l'id Resend");
   await passage({ env, fetchImpl, pause: 1 });
   assert.equal(mails.length, 1, "pas de second e-mail pendant l'incident");
   enPanne = false;

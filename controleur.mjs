@@ -145,7 +145,7 @@ export async function passage({ env, fetchImpl = fetch, pause = PAUSE_CONFIRMATI
         ? `${urlAffichee(r.url)}\nMotif : ${r.motif}\nDeux échecs consécutifs (contrôle du VPS, toutes les 5 min), constaté à ${quand}.\nUn seul e-mail par incident ; un second partira au retour à la normale.\nQue faire : docs/INCIDENTS.md (dépôt myro-funnel).`
         : `${urlAffichee(r.url)}\nDe nouveau en ordre à ${quand} (panne ouverte à ${heureUtc(new Date(d.incident.depuis))}).`;
     const e = await envoyer(env, sujet, texte, `myro-controleur-${r.id}-${d.incident.depuis}-${d.action}`, fetchImpl);
-    envois.push({ id: r.id, action: d.action, ...e });
+    envois.push({ controle: r.id, action: d.action, ok: e.ok, resend: e.id ?? null, motif: e.motif ?? null });
     /* E-mail non parti : l'incident n'est PAS tenu pour signalé (revue du 03/10).
        Panne : on ne l'ouvre pas — le passage suivant, toujours en échec, retente
        l'alerte. Retour : on le garde ouvert — le passage suivant retente le retour. */
